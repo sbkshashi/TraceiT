@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letter & Number Tracing Book</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none; 
+        }
+        .touch-none {
+            touch-action: none;
+        }
+        canvas {
+            cursor: crosshair;
+            border-radius: 0.5rem; 
+        }
+        .guide-char {
+            font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif; 
+            font-weight: bold;
+        }
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 350px; 
+            text-align: center;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .rating-stars {
+            font-size: 1.5rem;
+            color: #fbbf24; /* amber-400 */
+        }
+        .color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .color-swatch.active, .color-swatch:hover {
+            border-color: #3b82f6; /* blue-500 for active/hover */
+        }
+        .thickness-button {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e1; /* slate-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .thickness-button.active {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            border-color: #3b82f6;
+        }
+        .thickness-button:not(.active):hover {
+            background-color: #f1f5f9; /* slate-100 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-sky-400 to-blue-600 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-yellow-300 selection:text-yellow-900">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-lg">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-sky-700">Trace & Learn!</h1>
+            <p class="text-slate-600 text-sm sm:text-base">Practice your letters and numbers. Customize your pen!</p>
+        </header>
+
+        <main>
+            <div id="characterDisplay" class="text-center mb-2 text-5xl sm:text-6xl font-bold text-slate-700 guide-char h-16 sm:h-20 flex items-center justify-center">
+                A
+            </div>
+
+            <div class="relative w-full aspect-[4/3] sm:aspect-video bg-slate-100 rounded-lg shadow-inner overflow-hidden mb-6">
+                <canvas id="tracingCanvas" class="touch-none absolute top-0 left-0 w-full h-full"></canvas>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <button id="prevButton" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-transform duration-150 active:scale-95 text-sm sm:text-base">
+                    Previous
+                </button>
+                <button id="nextButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-transform duration-150 active:scale-95 text-sm sm:text-base">
+                    Next
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                 <button id="checkButton" class="col-span-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-transform duration-150 active:scale-95 text-sm sm:text-base">
+                    Check Tracing
+                </button>
+                <button id="clearButton" class="col-span-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-transform duration-150 active:scale-95 text-sm sm:text-base">
+                    Clear
+                </button>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-300">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Thickness:</label>
+                        <div id="thicknessOptions" class="flex space-x-2">
+                            </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Color:</label>
+                        <div id="colorOptions" class="flex space-x-1 sm:space-x-2 flex-wrap gap-y-2">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-8 text-xs text-slate-500">
+            <p>Happy Tracing!</p>
+        </footer>
+    </div>
+
+    <div id="customModal" class="modal">
+        <div class="modal-content">
+            <p id="modalMessage" class="mb-3 text-slate-700"></p>
+            <div id="ratingDisplay" class="rating-stars mb-3"></div>
+            <button id="modalCloseButton" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg w-full sm:w-auto">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const uppercaseLetters = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
+        const lowercaseLetters = Array.from({length: 26}, (_, i) => String.fromCharCode(97 + i));
+        const combinedLetters = uppercaseLetters.map((ul, i) => ul + lowercaseLetters[i]);
+        const numbers = Array.from({length: 10}, (_, i) => i.toString());
+
+        const characters = [
+            ...uppercaseLetters,
+            ...lowercaseLetters,
+            ...combinedLetters,
+            ...numbers
+        ];
+        const guideColor = 'rgba(200, 200, 200, 0.8)'; 
+        
+        // Pen Customization Options
+        const penColors = [
+            { name: 'Red', value: '#ef4444' },    // red-500
+            { name: 'Blue', value: '#3b82f6' },   // blue-500 (default)
+            { name: 'Green', value: '#22c55e' },  // green-500
+            { name: 'Black', value: '#1f2937' },  // gray-800
+            { name: 'Yellow', value: '#eab308' }, // yellow-500
+            { name: 'Purple', value: '#8b5cf6' }  // violet-500
+        ];
+        const penThicknesses = [
+            { name: 'Thin', value: 4 },
+            { name: 'Medium', value: 8 }, // default
+            { name: 'Thick', value: 12 }
+        ];
+
+        // --- DOM Elements ---
+        const canvas = document.getElementById('tracingCanvas');
+        const ctx = canvas.getContext('2d');
+        const characterDisplay = document.getElementById('characterDisplay');
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        const clearButton = document.getElementById('clearButton');
+        const checkButton = document.getElementById('checkButton');
+        const thicknessOptionsContainer = document.getElementById('thicknessOptions');
+        const colorOptionsContainer = document.getElementById('colorOptions');
+        
+        const customModal = document.getElementById('customModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const ratingDisplay = document.getElementById('ratingDisplay');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+
+        // --- State ---
+        let currentCharacterIndex = 0;
+        let isDrawing = false;
+        let currentPath = []; 
+        let userStrokes = []; 
+        let currentTraceColor = penColors.find(c => c.name === 'Blue').value; // Default color
+        let currentTraceLineWidth = penThicknesses.find(t => t.name === 'Medium').value; // Default thickness
+
+
+        // --- Utility Functions ---
+        function showModal(message, stars = 0) {
+            modalMessage.textContent = message;
+            let starHtml = '';
+            if (stars > 0) {
+                for (let i = 0; i < 5; i++) {
+                    starHtml += i < stars ? '★' : '☆';
+                }
+            } else { 
+                 for (let i = 0; i < 5; i++) {
+                    starHtml += '☆';
+                }
+            }
+            ratingDisplay.innerHTML = starHtml;
+            customModal.style.display = 'flex';
+        }
+
+        modalCloseButton.onclick = function() {
+            customModal.style.display = 'none';
+        }
+
+        // --- Canvas Setup and Drawing ---
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            const { width, height } = parent.getBoundingClientRect();
+            canvas.width = width;
+            canvas.height = height;
+            redrawCanvas(); 
+        }
+
+        function drawGuideCharacter() {
+            const char = characters[currentCharacterIndex];
+            const fontSize = Math.min(canvas.width * 0.6, canvas.height * 0.7); 
+            
+            ctx.font = `${fontSize}px 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif`;
+            ctx.fillStyle = guideColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const textMetrics = ctx.measureText(char);
+            const charWidth = textMetrics.width;
+            const charHeight = fontSize; 
+
+            ctx.clearRect(
+                canvas.width / 2 - charWidth / 2 - 20, 
+                canvas.height / 2 - charHeight / 2 - 20, 
+                charWidth + 40, 
+                charHeight + 40
+            );
+            
+            ctx.fillText(char, canvas.width / 2, canvas.height / 2);
+        }
+        
+        function drawUserStrokes() {
+            // Use current pen settings for all strokes on redraw
+            ctx.strokeStyle = currentTraceColor;
+            ctx.lineWidth = currentTraceLineWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            userStrokes.forEach(stroke => {
+                if (stroke.length < 1) return; 
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+                if (stroke.length === 1) { 
+                    ctx.fillStyle = currentTraceColor; // Use current color for dots too
+                    ctx.arc(stroke[0].x, stroke[0].y, currentTraceLineWidth / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    for (let i = 1; i < stroke.length; i++) {
+                        ctx.lineTo(stroke[i].x, stroke[i].y);
+                    }
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGuideCharacter();
+            drawUserStrokes();
+        }
+
+        // --- Event Handlers ---
+        function getEventPosition(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            e.preventDefault(); 
+            isDrawing = true;
+            currentPath = []; 
+            const pos = getEventPosition(e);
+            currentPath.push(pos);
+            
+            // Draw initial dot with current settings
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, currentTraceLineWidth / 2, 0, Math.PI * 2);
+            ctx.fillStyle = currentTraceColor;
+            ctx.fill();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getEventPosition(e);
+            currentPath.push(pos);
+
+            ctx.beginPath();
+            if (currentPath.length > 1) {
+                 ctx.moveTo(currentPath[currentPath.length - 2].x, currentPath[currentPath.length - 2].y);
+                 ctx.lineTo(pos.x, pos.y);
+                 ctx.strokeStyle = currentTraceColor; // Use current color
+                 ctx.lineWidth = currentTraceLineWidth; // Use current thickness
+                 ctx.lineCap = 'round';
+                 ctx.lineJoin = 'round';
+                 ctx.stroke();
+            }
+        }
+
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            if (currentPath.length > 0) { 
+                userStrokes.push([...currentPath]); 
+            }
+            currentPath = [];
+        }
+
+        function updateCharacterDisplay() {
+            characterDisplay.textContent = characters[currentCharacterIndex];
+            userStrokes = []; 
+            redrawCanvas();
+        }
+
+        prevButton.addEventListener('click', () => {
+            currentCharacterIndex = (currentCharacterIndex - 1 + characters.length) % characters.length;
+            updateCharacterDisplay();
+        });
+
+        nextButton.addEventListener('click', () => {
+            currentCharacterIndex = (currentCharacterIndex + 1) % characters.length;
+            updateCharacterDisplay();
+        });
+
+        clearButton.addEventListener('click', () => {
+            userStrokes = [];
+            redrawCanvas(); 
+        });
+
+        checkButton.addEventListener('click', () => {
+            const numStrokes = userStrokes.length;
+            if (numStrokes === 0) {
+                showModal("Try tracing the letter first!", 0);
+            } else if (numStrokes === 1) {
+                if (userStrokes[0] && userStrokes[0].length < 5) { 
+                    showModal("Just a tap? Try drawing the lines!", 1);
+                } else { 
+                    showModal("Good single stroke! Perfect for simple letters.", 3);
+                }
+            } else if (numStrokes === 2) {
+                showModal("Well done! Many letters are made with two strokes.", 4);
+            } else { 
+                showModal("Excellent! That looks like a complete letter!", 5);
+            }
+        });
+
+        // --- Pen Customization UI Setup ---
+        function setupPenControls() {
+            // Thickness Options
+            penThicknesses.forEach(thickness => {
+                const button = document.createElement('button');
+                button.textContent = thickness.name;
+                button.classList.add('thickness-button', 'text-sm');
+                if (thickness.value === currentTraceLineWidth) {
+                    button.classList.add('active');
+                }
+                button.addEventListener('click', () => {
+                    currentTraceLineWidth = thickness.value;
+                    document.querySelectorAll('#thicknessOptions .thickness-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    redrawCanvas(); // Redraw existing strokes with new thickness
+                });
+                thicknessOptionsContainer.appendChild(button);
+            });
+
+            // Color Options
+            penColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.classList.add('color-swatch');
+                swatch.style.backgroundColor = color.value;
+                swatch.title = color.name; // Tooltip for color name
+                if (color.value === currentTraceColor) {
+                    swatch.classList.add('active');
+                }
+                swatch.addEventListener('click', () => {
+                    currentTraceColor = color.value;
+                    document.querySelectorAll('#colorOptions .color-swatch').forEach(s => s.classList.remove('active'));
+                    swatch.classList.add('active');
+                    redrawCanvas(); // Redraw existing strokes with new color
+                });
+                colorOptionsContainer.appendChild(swatch);
+            });
+        }
+
+
+        // --- Initialization ---
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing); 
+
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing);
+
+        window.addEventListener('load', () => {
+            setupPenControls(); // Initialize pen control UI
+            resizeCanvas(); 
+            updateCharacterDisplay(); 
+        });
+        window.addEventListener('resize', resizeCanvas); 
+
+    </script>
+</body>
+</html>
